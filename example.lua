@@ -180,9 +180,11 @@ local function write_csv(data, filename)
     return true
 end
 
-local table_data = create_frame(2024, "SPY",
-    { "SPY", "PFRL", "JEPI", "JEPQ", "USFR", "TFLO", "DIVO", "JQUA", "SCHD", "PFF" })
+-- local table_data = create_frame(2024, "SPY",
+--     { "SPY", "PFRL", "JEPI", "JEPQ", "USFR", "TFLO", "DIVO", "JQUA", "SCHD", "PFF" })
 
-print_frame(table_data)
+-- print_frame(table_data)
 
-write_csv(table_data, "etf_analysis.csv")
+-- write_csv(table_data, "etf_analysis.csv")
+
+print(av.table_to_json(client:query(av.Func.News.Top)))

@@ -97,17 +97,16 @@ M.Func = {
         },
         Technical = {
             -- Moving Averages
-            SMA = "SMA",     -- Simple Moving Average
-            EMA = "EMA",     -- Exponential Moving Average
-            WMA = "WMA",     -- Weighted Moving Average
-            DEMA = "DEMA",   -- Double Exponential Moving Average
-            TEMA = "TEMA",   -- Triple Exponential Moving Average
-            TRIMA = "TRIMA", -- Triangular Moving Average
-            KAMA = "KAMA",   -- Kaufman Adaptive Moving Average
-            MAMA = "MAMA",   -- MESA Adaptive Moving Average
-            T3 = "T3",       -- Triple Exponential Moving Average
-            VWAP = "VWAP",   -- Volume Weighted Average Price
-
+            SMA = "SMA",       -- Simple Moving Average
+            EMA = "EMA",       -- Exponential Moving Average
+            WMA = "WMA",       -- Weighted Moving Average
+            DEMA = "DEMA",     -- Double Exponential Moving Average
+            TEMA = "TEMA",     -- Triple Exponential Moving Average
+            TRIMA = "TRIMA",   -- Triangular Moving Average
+            KAMA = "KAMA",     -- Kaufman Adaptive Moving Average
+            MAMA = "MAMA",     -- MESA Adaptive Moving Average
+            T3 = "T3",         -- Triple Exponential Moving Average
+            VWAP = "VWAP",     -- Volume Weighted Average Price
             -- Oscillators
             MACD = "MACD",     -- Moving Average Convergence/Divergence
             MACDEXT = "MACDEXT",
@@ -132,13 +131,11 @@ M.Func = {
             TRIX = "TRIX",     -- Triple Exponential Average
             ULTOSC = "ULTOSC", -- Ultimate Oscillator
             DX = "DX",         -- Directional Movement Index
-
             -- Directional Indicators
             MINUS_DI = "MINUS_DI",
             PLUS_DI = "PLUS_DI",
             MINUS_DM = "MINUS_DM",
             PLUS_DM = "PLUS_DM",
-
             -- Other Indicators
             BBANDS = "BBANDS", -- Bollinger Bands
             MIDPOINT = "MIDPOINT",
@@ -150,7 +147,6 @@ M.Func = {
             AD = "AD",         -- Chaikin A/D Line
             ADOSC = "ADOSC",   -- Chaikin A/D Oscillator
             OBV = "OBV",       -- On Balance Volume
-
             -- Hilbert Transform
             HT_TRENDLINE = "HT_TRENDLINE",
             HT_SINE = "HT_SINE",
@@ -212,18 +208,9 @@ function M.load_api_key()
     return key
 end
 
-function M.dump(o)
-    if type(o) ~= 'table' then
-        return tostring(o)
-    end
-    local s = '{ '
-    for k, v in pairs(o) do
-        if type(k) ~= 'number' then k = '"' .. k .. '"' end
-        s = s .. '[' .. k .. '] = ' .. M.dump(v) .. ','
-    end
-    return s .. '} '
-end
-
+ function M.table_to_json(tbl)
+    return json.encode(tbl)
+ end
 
 function M.new(api_key)
     local client = {
