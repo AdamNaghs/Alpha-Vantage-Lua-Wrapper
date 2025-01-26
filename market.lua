@@ -1,8 +1,8 @@
 local M = { frame = {}, file = {} }
 --- Luajit
-local av = require("alpha_vantage")
+M.av = require("alpha_vantage")
 -- setting ratw to slightly less so we dont exceed hard limit of 75
-M.client = av.new(av.load_api_key(), 75)
+M.client = M.av.new(M.av.load_api_key(), 75)
 
 
 local function parse_date(date_str)
@@ -90,7 +90,7 @@ local function calculate_returns(data)
     return sum / #returns
 end
 
-function CAPM(market_return, risk_free_rate, beta)
+local function CAPM(market_return, risk_free_rate, beta)
     -- Convert annual risk-free to monthly
     local monthly_rf = (1 + risk_free_rate) ^ (1 / 12) - 1
     return 12 * (monthly_rf + beta * (market_return - monthly_rf))
@@ -169,7 +169,7 @@ end
 -- Does not compute CAPM because the benchmark_data is not easy to iterate over
 -- Takes data of benchmark so we dont need to requery it and the ticker so that we can do the initial query for that asset
 local function compute_stats_against(benchmarch_data, start_year, ticker)
-    local data, error = M.client:query(av.Func.Stock.TS.Monthly_Adj, { symbol = ticker, outputsize = "compact" })
+    local data, error = M.client:query(M.av.Func.Stock.TS.Monthly_Adj, { symbol = ticker, outputsize = "compact" })
     if data == nil then
         print(string.format("Error fetching %s: %s", ticker, error))
         return nil
@@ -194,20 +194,20 @@ end
 ---@param tickers table
 ---@return table|nil, nil|string
 function M.frame.create(start_year, benchmark_ticker, tickers)
-    local start = av.gettime()
+    local start = M.av.gettime()
     local data = {
         headers = { "Ticker", "Latest Price ($)", "Avg Price ($)", "Med Price ($)", "High Price ($)", "Low Price ($)", "Ann Div ($)", "Yield (%)", "Beta", "CAPM (%)" },
         rows = {}
     }
 
-    local benchmarch, error = M.client:query(av.Func.Stock.TS.Monthly_Adj,
+    local benchmarch, error = M.client:query(M.av.Func.Stock.TS.Monthly_Adj,
         { symbol = benchmark_ticker, outputsize = "compact" })
     if nil == benchmarch then return nil, error end
 
     local market_return = calculate_returns(benchmarch)
 
     for idx, ticker in ipairs(tickers) do
-        local time = av.gettime()
+        local time = M.av.gettime()
         local elapsed = time - start
         local avg_time_per_ticker = elapsed / idx -- Average time per ticker processed
         local remaining_tickers = #tickers - idx  -- Number of tickers left
@@ -237,7 +237,7 @@ function M.frame.create(start_year, benchmark_ticker, tickers)
         else
             if nil ~= stats[2] then --
                 error = string.format("Error computing stats for %s: %s", ticker, stats[2])
-                av.log(error)
+                M.av:log(error)
                 print(string.format("%s%s\r", error, string.rep(" ", 20)))
             end
         end
@@ -288,12 +288,21 @@ function M.file.write_csv(data, filename)
     return true
 end
 
-function M.file.lines_from(file)
+function M.file.lines_from(filepath)
     local lines = {}
-    for line in io.lines(file) do
+    for line in io.lines(filepath) do
         lines[#lines + 1] = line
     end
     return lines
+end
+
+function M.file.clear(filepath)
+    local file = io.open(filepath,"w+")
+    if nil == file then
+        print(string.format("File %s not found.",filepath))
+        return
+    end
+    file:close()
 end
 
 return M
