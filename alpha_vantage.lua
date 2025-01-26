@@ -1,5 +1,6 @@
 local M = {}
 
+local socket = require("socket")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local json = require("cjson")
@@ -25,7 +26,7 @@ M.Func = {
     },
     News = {
         Sentiment = "NEWS_SENTIMENT",
-        Top = "TOP_GAINERS_LOSERS",
+        Top_Movers = "TOP_GAINERS_LOSERS",
         Insider = "INSDER_TRANSACTIONS",
         Analytics =
         {
@@ -187,16 +188,35 @@ local function query(self, func, args)
     log(base_url) -- not logging apikey
     base_url = base_url .. "&apikey=" .. self.api_key
     local response_body = {}
-    local _, code = http.request({
+    local response, code = http.request({
         url = base_url,
         method = "GET",
         sink = ltn12.sink.table(response_body),
         headers = { ["User-Agent"] = "Lua Alpha Vantage Client" }
     })
     if code ~= 200 then
-        return nil, string.format("HTTP request failed with code %d", code)
+        local error = string.format("HTTP request failed with code %d", code)
+        log(error)
+        return nil, error
     end
-    return json.decode(table.concat(response_body)), nil
+    local decoded = json.decode(table.concat(response_body))
+    if decoded["Error Message"] then
+        log(decoded["Error Message"])
+        return nil, decoded["Error Message"]
+    end
+    if decoded["Note"] then -- Rate limit message
+        log(decoded["Note"])
+        return nil, decoded["Note"]
+    end
+    if decoded["Information"] then
+        log(decoded["Information"])
+        return nil, decoded["Information"]
+    end
+    if not decoded or next(decoded) == nil then
+        log("Empty response")
+        return nil, "Empty response"
+    end
+    return decoded, nil
 end
 
 ---comment Expects file alpha_vantage_key.txt to exist and contain key.
@@ -208,15 +228,38 @@ function M.load_api_key()
     return key
 end
 
- function M.table_to_json(tbl)
+function M.table_to_json(tbl)
     return json.encode(tbl)
- end
+end
 
-function M.new(api_key)
+M.uncapped_rate = 1000000
+
+M.gettime = socket.gettime
+
+M.sleep = socket.sleep
+
+-- Set the rate_per_minute to 3600 to uncap
+function M.new(api_key, rate_per_minute)
     local client = {
         api_key = api_key,
-        query = query,
+        rate_per_minute = rate_per_minute or 5,
+        last_query_time = M.gettime(),
     }
+
+    -- Wrap query function with rate limiting
+    client.query = function(self, func, args)
+        local time_since_last = M.gettime() - self.last_query_time
+        local delay_needed = (60 / self.rate_per_minute) - time_since_last
+
+        if self.rate_per_minute ~= M.uncapped_rate and delay_needed > 0 then
+            log("Sleeping " .. tostring(delay_needed))
+            M.sleep(delay_needed)
+        end
+
+        self.last_query_time = M.gettime()
+        return query(self, func, args)
+    end
+
     return client
 end
 
