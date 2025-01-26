@@ -178,7 +178,7 @@ local function query(self, func, args)
     if nil == self.api_key then
         self.api_key = M.load_api_key()
         if nil == self.api_key then
-            return nil, "Alpha Vantage Client missing api_key."
+            return nil, "Alpha Vantage Client missing api_key. Could not load from \"alpha_vantage_key.txt\"."
         end
     end
     local base_url = "https://www.alphavantage.co/query?function=" .. func
