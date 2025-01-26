@@ -197,7 +197,8 @@ local function query(self, func, args)
     local error_string = nil
     if code ~= 200 then
         error_string = string.format("HTTP request failed with code %d", code)
-        goto fail -- will crash if we continue and decode the response_body
+        M:log(error_string)
+        return nil, error_string
     end
     local decoded = json.decode(table.concat(response_body))
     if decoded["Error Message"] then
@@ -212,7 +213,6 @@ local function query(self, func, args)
     if not decoded or next(decoded) == nil then
         error_string = "Empty response"
     end
-    ::fail::
     if nil ~= error_string then
         M:log(error_string)
         return nil, error_string
