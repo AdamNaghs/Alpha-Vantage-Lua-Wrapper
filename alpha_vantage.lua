@@ -1,4 +1,4 @@
-local M = {}
+local M = {log_file_path = "av_queries.log"}
 
 local socket = require("socket")
 local http = require("socket.http")
@@ -159,8 +159,8 @@ M.Func = {
     }
 }
 
-local function log(str)
-    local log_file = io.open("av_queries.log", "a")
+function M:log(str)
+    local log_file = io.open(self.log_file_path, "a")
     if nil == log_file then
         print("Could not log: ", str)
         return
@@ -185,7 +185,7 @@ local function query(self, func, args)
     for key, value in pairs(args or {}) do
         base_url = base_url .. "&" .. key .. "=" .. value
     end
-    log(base_url) -- not logging apikey
+    M:log(base_url) -- not logging apikey
     base_url = base_url .. "&apikey=" .. self.api_key
     local response_body = {}
     local response, code = http.request({
@@ -196,24 +196,24 @@ local function query(self, func, args)
     })
     if code ~= 200 then
         local error = string.format("HTTP request failed with code %d", code)
-        log(error)
+        M:log(error)
         return nil, error
     end
     local decoded = json.decode(table.concat(response_body))
     if decoded["Error Message"] then
-        log(decoded["Error Message"])
+        M:log(decoded["Error Message"])
         return nil, decoded["Error Message"]
     end
     if decoded["Note"] then -- Rate limit message
-        log(decoded["Note"])
+        M:log(decoded["Note"])
         return nil, decoded["Note"]
     end
     if decoded["Information"] then
-        log(decoded["Information"])
+        M:log(decoded["Information"])
         return nil, decoded["Information"]
     end
     if not decoded or next(decoded) == nil then
-        log("Empty response")
+        M:log("Empty response")
         return nil, "Empty response"
     end
     return decoded, nil
@@ -252,7 +252,7 @@ function M.new(api_key, rate_per_minute)
         local delay_needed = (60 / self.rate_per_minute) - time_since_last
 
         if self.rate_per_minute ~= M.uncapped_rate and delay_needed > 0 then
-            log("Sleeping " .. tostring(delay_needed))
+            M:log("Sleeping " .. tostring(delay_needed))
             M.sleep(delay_needed)
         end
 
