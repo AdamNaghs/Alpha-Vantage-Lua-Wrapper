@@ -1,7 +1,7 @@
 local M = { frame = {}, file = {} }
 --- Luajit
 M.av = require("alpha_vantage")
--- setting ratw to slightly less so we dont exceed hard limit of 75
+-- could be smart to decrease the rate from your actual hard cap to ensure all calls are made
 M.client = M.av.new(M.av.load_api_key(), 75)
 
 
