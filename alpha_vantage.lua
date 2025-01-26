@@ -194,27 +194,28 @@ local function query(self, func, args)
         sink = ltn12.sink.table(response_body),
         headers = { ["User-Agent"] = "Lua Alpha Vantage Client" }
     })
+    local error_string = nil
     if code ~= 200 then
-        local error = string.format("HTTP request failed with code %d", code)
-        M:log(error)
-        return nil, error
+        error_string = string.format("HTTP request failed with code %d", code)
+        goto fail -- will crash if we continue and decode the response_body
     end
     local decoded = json.decode(table.concat(response_body))
     if decoded["Error Message"] then
-        M:log(decoded["Error Message"])
-        return nil, decoded["Error Message"]
+        error_string = decoded["Error Message"]
     end
     if decoded["Note"] then -- Rate limit message
-        M:log(decoded["Note"])
-        return nil, decoded["Note"]
+        error_string = decoded["Note"]
     end
     if decoded["Information"] then
-        M:log(decoded["Information"])
-        return nil, decoded["Information"]
+        error_string = decoded["Information"]
     end
     if not decoded or next(decoded) == nil then
-        M:log("Empty response")
-        return nil, "Empty response"
+        error_string = "Empty response"
+    end
+    ::fail::
+    if nil ~= error_string then
+        M:log(error_string)
+        return nil, error_string
     end
     return decoded, nil
 end
