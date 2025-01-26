@@ -102,73 +102,72 @@ end
 
 -- does not compute CAPM because it requred a beta which required a benchmark
 local function compute_stats(start_year, data)
+    local function normalize_date(date)
+        local year, month, day = date:match("^(%d%d%d%d)-(%d%d)-(%d%d)")
+        return year and month and day and string.format("%s-%s-%s", year, month, day)
+    end
+
     local list = data["Monthly Adjusted Time Series"]
     if not list then return nil, "Missing time series data" end
-
+    
     local dates = {}
-    for date in pairs(list) do
-        table.insert(dates, date)
-    end
-    table.sort(dates, function(a, b) return a > b end)
-
     local valid_prices = {}
-    local dividends = {}
     local latest_price = nil
-
+    local dividends = {}
+    
+    -- First pass: collect all dates and validate data
+    for date in pairs(list) do
+        local normalized_date = normalize_date(date)
+        if normalized_date then
+            table.insert(dates, normalized_date)
+        end
+    end
+    table.sort(dates, function(a, b) return a > b end)  -- Sort descending
+    
+    -- Second pass: collect prices and dividends
     for _, date in ipairs(dates) do
         local value_dict = list[date]
         local price = tonumber(value_dict["5. adjusted close"])
         local div = tonumber(value_dict["7. dividend amount"])
-
-        if price and price > 0 and price < 1000 then
-            latest_price = latest_price or price
+        
+        if price and price > 0 then
+            latest_price = latest_price or price  -- Set latest price if not set
             table.insert(valid_prices, price)
         end
-
+        
         if div and div > 0 then
-            table.insert(dividends, div)
+            dividends[date] = div
         end
     end
 
     if #valid_prices < 3 then return nil, "Insufficient valid price data" end
-
     table.sort(valid_prices)
 
-    -- Robust statistical calculations
-    local function calculate_median(tbl)
-        local mid = math.floor(#tbl / 2)
-        return tbl[mid]
+    local median_price = valid_prices[math.floor(#valid_prices / 2)]
+    local trim_count = math.floor(#valid_prices * 0.1)
+    local sum = 0
+    for i = trim_count + 1, #valid_prices - trim_count do
+        sum = sum + valid_prices[i]
     end
-
-    local function calculate_trimmed_mean(tbl, trim_percent)
-        local trim_count = math.floor(#tbl * trim_percent)
-        local sum = 0
-        for i = trim_count + 1, #tbl - trim_count do
-            sum = sum + tbl[i]
-        end
-        return sum / (math.max(1, #tbl - 2 * trim_count))
-    end
-
-    local median_price = calculate_median(valid_prices)
-    local average_price = calculate_trimmed_mean(valid_prices, 0.1)
-    local price_low = valid_prices[1]
-    local price_high = valid_prices[#valid_prices]
-
-    -- Conservative dividend calculation
+    local average_price = sum / (math.max(1, #valid_prices - 2 * trim_count))
+    
+    -- Calculate annual dividend
     local annual_dividend = 0
-    local annual_yield = 0
-    if #dividends > 0 then
-        annual_dividend = dividends[#dividends] -- Use most recent dividend
-        annual_yield = latest_price > 0 and (annual_dividend / latest_price) * 100 or 0
-
-        -- Sanity check on yield
-        if annual_yield > 100 then
-            annual_dividend = 0
-            annual_yield = 0
+    if next(dividends) then
+        local latest_year, latest_month = parse_date(dates[1])
+        for date, div in pairs(dividends) do
+            local year, month = parse_date(date)
+            if year and month then
+                local months_diff = (latest_year - year) * 12 + (latest_month - month)
+                if months_diff >= 0 and months_diff < 12 then
+                    annual_dividend = annual_dividend + div
+                end
+            end
         end
     end
-
-    return latest_price, average_price, price_high, price_low, median_price, annual_dividend, annual_yield
+    local annual_yield = latest_price > 0 and (annual_dividend / latest_price) * 100 or 0
+    return latest_price, average_price, valid_prices[#valid_prices], valid_prices[1], 
+           median_price, annual_dividend, annual_yield
 end
 
 -- Does not compute CAPM because the benchmark_data is not easy to iterate over
@@ -307,13 +306,13 @@ if nil == movers then
     os.exit(1)
 end
 
-local tickers = {}
+local tickers = { "JEPI", "JEPQ", "GOOG", "NVDA", "AAPL", "NFLX", "META", "AMZN", "USFR", "TFLO", }
 
-for _, dict in ipairs(movers["most_actively_traded"]) do
-    table.insert(tickers, dict["ticker"])
-end
+-- for _, dict in ipairs(movers["most_actively_traded"]) do
+--     table.insert(tickers, dict["ticker"])
+-- end
 
-local table_data = create_frame(2023, "SPY", tickers)
+local table_data = create_frame(2024, "SPY", tickers)
 
 print_frame(table_data)
 
